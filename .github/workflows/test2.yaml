@@ -64,16 +64,16 @@ jobs:
             echo "Commands completed"
           EOF
       
-      - name: Remove IP from Security Group
-        if: always()
-        run: |
-          RUNNER_IP="${{ steps.get_ip.outputs.ip }}/32"
-          echo "Removing IP $RUNNER_IP from security group ${{ secrets.SECURITY_GROUP_ID }}"
+      # - name: Remove IP from Security Group
+      #   if: always()
+      #   run: |
+      #     RUNNER_IP="${{ steps.get_ip.outputs.ip }}/32"
+      #     echo "Removing IP $RUNNER_IP from security group ${{ secrets.SECURITY_GROUP_ID }}"
           
-          aws ec2 revoke-security-group-ingress \
-            --group-id ${{ secrets.SECURITY_GROUP_ID }} \
-            --protocol tcp \
-            --port 22 \
-            --cidr $RUNNER_IP
+      #     aws ec2 revoke-security-group-ingress \
+      #       --group-id ${{ secrets.SECURITY_GROUP_ID }} \
+      #       --protocol tcp \
+      #       --port 22 \
+      #       --cidr $RUNNER_IP
           
-          echo "Successfully removed inbound rule for $RUNNER_IP"
+      #     echo "Successfully removed inbound rule for $RUNNER_IP"
