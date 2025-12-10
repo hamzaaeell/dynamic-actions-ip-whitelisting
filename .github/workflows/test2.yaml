@@ -50,19 +50,42 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
       
-      - name: SSH into EC2 Instance
+      - name: SSH into EC2 Instance and Install Nginx
         run: |
           ssh -i ~/.ssh/id_rsa ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
             echo "Successfully connected to EC2 instance"
             echo "Running commands on EC2..."
             
-            # Add your commands here
+            # System info
             whoami
             hostname
             uptime
             
-            echo "Commands completed"
+            # Update package list
+            echo "Updating package list..."
+            sudo apt-get update -y
+            
+            # Install nginx
+            echo "Installing nginx..."
+            sudo apt-get install nginx -y
+            
+            # Start nginx service
+            echo "Starting nginx service..."
+            sudo systemctl start nginx
+            sudo systemctl enable nginx
+            
+            # Check nginx status
+            echo "Checking nginx status..."
+            sudo systemctl status nginx --no-pager
+            
+            # Verify nginx is listening
+            echo "Verifying nginx is listening on port 80..."
+            sudo netstat -tlnp | grep :80 || sudo ss -tlnp | grep :80
+            
+            echo "Nginx installation completed successfully!"
           EOF
+
+          
       
       # - name: Remove IP from Security Group
       #   if: always()
