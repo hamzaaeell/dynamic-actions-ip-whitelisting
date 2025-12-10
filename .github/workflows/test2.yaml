@@ -1,0 +1,79 @@
+name: SSH to EC2 with Dynamic IP Whitelisting
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  ssh-to-ec2:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      
+      - name: Get Public IP
+        id: get_ip
+        run: |
+          IP=$(curl -s -4 ifconfig.me)
+          echo "Public IP: $IP"
+          echo "ip=$IP" >> $GITHUB_OUTPUT
+      
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      
+      - name: Add IP to Security Group
+        id: add_rule
+        run: |
+          RUNNER_IP="${{ steps.get_ip.outputs.ip }}/32"
+          echo "Adding IP $RUNNER_IP to security group ${{ secrets.SECURITY_GROUP_ID }}"
+          
+          aws ec2 authorize-security-group-ingress \
+            --group-id ${{ secrets.SECURITY_GROUP_ID }} \
+            --protocol tcp \
+            --port 22 \
+            --cidr $RUNNER_IP \
+            --tag-specifications "ResourceType=security-group-rule,Tags=[{Key=ManagedBy,Value=GitHubActions},{Key=CreatedAt,Value=$(date +%s)}]"
+          
+          echo "Successfully added inbound rule for $RUNNER_IP"
+      
+      - name: Wait for Security Group Rule to Propagate
+        run: sleep 5
+      
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+      
+      - name: SSH into EC2 Instance
+        run: |
+          ssh -i ~/.ssh/id_rsa ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            echo "Successfully connected to EC2 instance"
+            echo "Running commands on EC2..."
+            
+            # Add your commands here
+            whoami
+            hostname
+            uptime
+            
+            echo "Commands completed"
+          EOF
+      
+      - name: Remove IP from Security Group
+        if: always()
+        run: |
+          RUNNER_IP="${{ steps.get_ip.outputs.ip }}/32"
+          echo "Removing IP $RUNNER_IP from security group ${{ secrets.SECURITY_GROUP_ID }}"
+          
+          aws ec2 revoke-security-group-ingress \
+            --group-id ${{ secrets.SECURITY_GROUP_ID }} \
+            --protocol tcp \
+            --port 22 \
+            --cidr $RUNNER_IP
+          
+          echo "Successfully removed inbound rule for $RUNNER_IP"
