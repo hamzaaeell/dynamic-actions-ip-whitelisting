@@ -1,24 +1,19 @@
 name: Print Runner Public IP
-
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
-
 jobs:
   show-ip:
     runs-on: ubuntu-latest
-
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-
       - name: Get Public IP
         id: get_ip
         run: |
           IP=$(curl -s -4 ifconfig.me)
           echo "Public IP: $IP"
           echo "ip=$IP" >> $GITHUB_OUTPUT
-
       - name: Print IP again from output
-        run: echo "The runner public IP is: ${{ steps.get_ip.outputs.ip }}"
+        run: echo "The runner public IP is ${{ steps.get_ip.outputs.ip }}"
